@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rush Hour Game</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <h1>Rush Hour</h1>
+        <p class="hint">Выведите <strong>красную машину</strong> в правый край!</p>
+        <div class="grid">
+            <div v-for="(row, rowIndex) in grid" :key="rowIndex" class="row">
+                <div
+                    v-for="(cell, colIndex) in row"
+                    :key="colIndex"
+                    class="cell"
+                    :class="{
+                        'car': cell !== 0,
+                        [`car-${cell}`]: cell !== 0,
+                        'exit': isExit(rowIndex, colIndex)
+                    }"
+                    @mousedown="startDrag($event, rowIndex, colIndex)"
+                    @mousemove="dragOver($event)"
+                    @mouseup="endDrag"
+                ></div>
+            </div>
+        </div>
+        <div v-if="selectedCar" class="controls">
+            <button @click="moveCar('up')">↑</button>
+            <button @click="moveCar('down')">↓</button>
+            <button @click="moveCar('left')">←</button>
+            <button @click="moveCar('right')">→</button>
+        </div>
+        <div v-if="isWin" class="win-message">Поздравляем! Вы выиграли! 🎉</div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

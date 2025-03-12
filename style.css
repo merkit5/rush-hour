@@ -1,0 +1,77 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+.hint {
+    font-size: 18px;
+    color: #555;
+}
+
+.hint strong {
+    color: #ff6b6b;
+}
+
+.grid {
+    display: flex;
+    flex-direction: column;
+    border: 2px solid #333;
+}
+
+.row {
+    display: flex;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    position: relative;
+}
+
+.car {
+    background-color: #ff6b6b;
+}
+
+.car-1 {
+    background-color: #ff6b6b; /* Красная машина */
+}
+
+.car-2 {
+    background-color: #4ecdc4; /* Синяя машина */
+}
+
+.car-3 {
+    background-color: #ffe66d; /* Желтая машина */
+}
+
+.exit {
+    background-color: #d1f7d1; /* Зеленый цвет для выхода */
+}
+
+.controls {
+    margin-top: 20px;
+}
+
+.controls button {
+    font-size: 20px;
+    margin: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+.win-message {
+    margin-top: 20px;
+    font-size: 24px;
+    color: green;
+}
