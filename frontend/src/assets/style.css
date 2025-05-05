@@ -104,3 +104,232 @@ h1 {
   cursor: pointer;
   font-size: 16px;
 }
+
+.difficulty-buttons, .win-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.control-buttons {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.control-buttons button {
+  padding: 10px 20px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  background-color: #4a6fa5;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.control-buttons button:hover {
+  background-color: #3a5a8c;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.control-buttons button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.control-buttons button:disabled {
+  background-color: #cccccc;
+  color: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Специфичные стили для каждой кнопки (опционально) */
+.control-buttons button:nth-child(1) { /* Ход назад */
+  background-color: #5f27cd;
+}
+
+.control-buttons button:nth-child(1):hover {
+  background-color: #4a1da8;
+}
+
+.control-buttons button:nth-child(2) { /* Подсказка */
+  background-color: #10ac84;
+}
+
+.control-buttons button:nth-child(2):hover {
+  background-color: #0d8a6a;
+}
+
+.control-buttons button:nth-child(3) { /* Начать заново */
+  background-color: #ff4757;
+}
+
+.control-buttons button:nth-child(3):hover {
+  background-color: #e03a48;
+}
+
+/* Стили для подсказок */
+.hint-move {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+}
+
+.hint-move::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(100, 255, 100, 0.2);
+  border-radius: 3px;
+  z-index: -1;
+}
+
+.hint-move::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border: 3px dashed #00cc00;
+  border-radius: 3px;
+  animation: pulse-green 1.5s infinite ease-in-out;
+  box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+}
+
+.hint-car {
+  position: relative;
+  z-index: 2;
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+.hint-car::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 200, 0, 0.2);
+  border-radius: 3px;
+  z-index: -1;
+}
+
+.hint-car::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border: 3px solid #ffaa00;
+  border-radius: 3px;
+  animation: pulse-orange 1.5s infinite ease-in-out;
+  box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
+}
+
+.hint-arrow {
+  position: absolute;
+  font-size: 26px;
+  font-weight: bold;
+  color: #ffcc00;
+  text-shadow: 
+    0 0 4px #000,
+    0 0 8px #ff9900;
+  z-index: 3;
+  animation: bounce 0.8s infinite alternate;
+  pointer-events: none;
+  /* Центрирование стрелки */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Анимации */
+@keyframes pulse-green {
+  0% { 
+    opacity: 0.6;
+    border-color: #00cc00;
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+  }
+  50% { 
+    opacity: 1;
+    border-color: #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+  }
+  100% { 
+    opacity: 0.6;
+    border-color: #00cc00;
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+  }
+}
+
+@keyframes pulse-orange {
+  0% { 
+    opacity: 0.7;
+    border-color: #ffaa00;
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
+  }
+  50% { 
+    opacity: 1;
+    border-color: #ffcc00;
+    box-shadow: 0 0 15px rgba(255, 200, 0, 0.9);
+  }
+  100% { 
+    opacity: 0.7;
+    border-color: #ffaa00;
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
+  }
+}
+
+@keyframes bounce {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+/* Эффект при наведении на подсказку */
+.hint-car:hover {
+  transform: scale(1.05);
+  z-index: 4;
+}
+
+.hint-car:hover::after {
+  border-width: 4px;
+  animation: pulse-orange-fast 0.8s infinite ease-in-out;
+}
+
+@keyframes pulse-orange-fast {
+  0% { 
+    opacity: 0.8;
+    border-color: #ffaa00;
+  }
+  50% { 
+    opacity: 1;
+    border-color: #ffdd00;
+  }
+  100% { 
+    opacity: 0.8;
+    border-color: #ffaa00;
+  }
+}
