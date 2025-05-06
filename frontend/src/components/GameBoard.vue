@@ -1,6 +1,6 @@
 <template>
   <div class="game-container">
-    <!-- Окно выбора сложности -->
+    <!-- Difficulty Selection -->
     <div v-if="!levelLoaded" class="modal-overlay">
       <div class="modal">
         <h2>Выберите сложность</h2>
@@ -12,8 +12,8 @@
       </div>
     </div>
 
-    <!-- Игровое поле -->
-    <div v-if="levelLoaded" class="game-board">
+    <!-- Game Board -->
+    <div v-if="levelLoaded" class="game-board" ref="gameBoardRef">
       <div class="grid">
         <div v-for="(row, rowIndex) in grid" :key="rowIndex" class="row">
           <div
@@ -21,6 +21,8 @@
             :key="colIndex"
             class="cell"
             :class="{
+              'empty': cell === 0,
+              'wall': cell === -1,
               'car': cell > 0 && cell !== 99,
               'exit': cell === 99,
               'hidden': colIndex === 6 && cell !== 99,
@@ -39,7 +41,7 @@
         </div>
       </div>
       
-      <!-- Кнопки управления -->
+      <!-- Control Buttons -->
       <div class="control-buttons">
         <button @click="undoMove" :disabled="moveHistory.length === 0">Ход назад</button>
         <button @click="showHint" :disabled="isHintCalculating">
@@ -49,7 +51,7 @@
       </div>
     </div>
 
-    <!-- Окно победы -->
+    <!-- Win Screen -->
     <div v-if="isWin" class="modal-overlay">
       <div class="modal">
         <h2>Поздравляем! 🎉</h2>
@@ -65,12 +67,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { easyLevels } from '../levels/easy'
 import { mediumLevels } from '../levels/medium'
 import { hardLevels } from '../levels/hard'
 
-// Состояние игры
+// Game state
 const levelLoaded = ref(false)
 const currentDifficulty = ref('')
 const currentLevelIndex = ref(0)
@@ -79,12 +81,44 @@ const isWin = ref(false)
 const moveHistory = ref([])
 const isHintCalculating = ref(false)
 
-// Состояние подсказки
+// Hint state
 const currentHint = ref(null)
 const hintMoveCells = ref([])
 const hintCarCells = ref([])
 const hintArrow = ref('→')
 
+// DOM reference
+const gameBoardRef = ref(null)
+
+// Car colors
+const colors = [
+  "#4ecdc4", // бирюзовый
+  "#ffe66d", // светло-желтый
+  "#ff7b00", // оранжевый
+  "#54a0ff", // небесно-синий
+  "#5f27cd", // фиолетовый
+  "#10ac84", // морская волна
+  "#f368e0", // розовый 
+  "#346194", // стальной синий
+  "#037f7f", // темный бирюзовый
+  "#ffcc29", // золотисто-желтый
+  "#2ed573", // салатовый
+  "#3742fa", // насыщенный синий
+  "#8c7ae6", // лавандовый
+  "#44bd32", // травяной зеленый
+  "#40739e", // серо-синий
+  "#D980FA", // сиреневый
+  "#A3CB38", // лаймово-зеленый
+  "#1289A7"  // голубовато-синий
+];
+
+
+// Drag state
+const selectedCar = ref(null)
+let isDragging = false
+let dragStartPosition = { x: 0, y: 0 }
+
+// Computed properties
 const currentLevels = computed(() => {
   switch (currentDifficulty.value) {
     case 'easy': return easyLevels
@@ -98,20 +132,7 @@ const hasNextLevel = computed(() =>
   currentLevelIndex.value < currentLevels.value.length - 1
 )
 
-// Цвета машин
-const colors = [
-  "#4ecdc4", "#ffe66d", "#ff9f43", "#54a0ff",
-  "#5f27cd", "#10ac84", "#f368e0", "#222f3e", "#01a3a4",
-  "#ffcc29", "#ff4757", "#2ed573", "#3742fa", "#8c7ae6",
-  "#e84118", "#44bd32", "#40739e", "#b71540", "#6D214F",
-  "#D980FA", "#ED4C67", "#A3CB38", "#1289A7"
-]
-
-const selectedCar = ref(null)
-let isDragging = false
-let dragStartPosition = { x: 0, y: 0 }
-
-// Функции для работы с подсказками
+// Helper functions
 const isHintMoveCell = (row, col) => {
   return hintMoveCells.value.some(c => c.row === row && c.col === col)
 }
@@ -126,12 +147,42 @@ const clearHint = () => {
   hintCarCells.value = []
 }
 
-// Основные функции игры
+// Level parsing
+const parseStringLevel = (levelStr) => {
+  const grid = Array(6).fill().map(() => Array(7).fill(0))
+  grid[2][6] = 99 // Exit position
+  
+  const chars = levelStr.split('')
+  let charIndex = 0
+  
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 6; col++) {
+      if (charIndex >= chars.length) continue
+      
+      const char = chars[charIndex++]
+      switch (char) {
+        case 'o': grid[row][col] = 0; break
+        case 'x': grid[row][col] = -1; break
+        case 'A': grid[row][col] = 1; break
+        default:
+          if (char >= 'B' && char <= 'Z') {
+            grid[row][col] = char.charCodeAt(0) - 64 + 1
+          }
+          break
+      }
+    }
+  }
+  
+  return grid
+}
+
 const getCarColor = (carId) => {
-  if (carId === 1) return "#ff6b6b"
+  if (carId === -1) return "#000000"
+  if (carId === 1) return "#f00"
   return colors[(carId - 2) % colors.length]
 }
 
+// Game control
 const startGame = (difficulty) => {
   currentDifficulty.value = difficulty
   currentLevelIndex.value = 0
@@ -150,7 +201,13 @@ const loadLevel = () => {
   moveHistory.value = []
   clearHint()
 
-  const levelData = JSON.parse(JSON.stringify(currentLevels.value[currentLevelIndex.value]))
+  let levelData = currentLevels.value[currentLevelIndex.value]
+  
+  if (typeof levelData === 'string') {
+    levelData = parseStringLevel(levelData)
+  } else {
+    levelData = JSON.parse(JSON.stringify(levelData))
+  }
 
   setTimeout(() => {
     grid.value = levelData
@@ -194,12 +251,13 @@ const changeDifficulty = () => {
   clearHint()
 }
 
+// Car movement logic
 const getCarLength = (carId) => 
   grid.value.flat().filter(cell => cell === carId).length
 
 const getCarDirection = (row, col) => {
   const carId = grid.value[row][col]
-  if (carId === 0 || carId === 99) return null
+  if (carId <= 0 || carId === 99) return null
 
   if ((col + 1 < grid.value[0].length && grid.value[row][col + 1] === carId) ||
       (col - 1 >= 0 && grid.value[row][col - 1] === carId)) {
@@ -218,10 +276,12 @@ const canMove = (row, col, direction, carDirection) => {
   const carId = grid.value[row][col]
   const carLength = getCarLength(carId)
 
+  if (carId === -1) return false
+
   if (carDirection === 'horizontal') {
     if (direction === 'left') {
       if (col === 6 && carId !== 1) return false
-      return col > 0 && grid.value[row][col - 1] === 0
+      return col > 0 && grid.value[row][col - 1] <= 0 && grid.value[row][col - 1] !== -1
     }
     if (direction === 'right') {
       const rightEdge = col + carLength - 1
@@ -230,16 +290,18 @@ const canMove = (row, col, direction, carDirection) => {
       }
       if (rightEdge + 1 >= 6 && carId !== 1) return false
       if (rightEdge + 1 >= 7) return false
-      return grid.value[row][rightEdge + 1] === 0
+      return grid.value[row][rightEdge + 1] <= 0 && grid.value[row][rightEdge + 1] !== -1
     }
   } else if (carDirection === 'vertical') {
     if (col === 6) return false
     if (direction === 'up') {
-      return row > 0 && grid.value[row - 1][col] === 0
+      return row > 0 && grid.value[row - 1][col] <= 0 && grid.value[row - 1][col] !== -1
     }
     if (direction === 'down') {
       const bottomEdge = row + carLength - 1
-      return bottomEdge + 1 < grid.value.length && grid.value[bottomEdge + 1][col] === 0
+      return bottomEdge + 1 < grid.value.length && 
+             grid.value[bottomEdge + 1][col] <= 0 && 
+             grid.value[bottomEdge + 1][col] !== -1
     }
   }
   return false
@@ -289,12 +351,13 @@ const undoMove = () => {
   clearHint()
 }
 
-// Функции для работы с перетаскиванием
+// Drag and drop functionality
 const startDrag = (event, row, col) => {
   const carId = grid.value[row][col]
-  if (carId === 0 || carId === 99 || isDragging) return
+  if (carId <= 0 || carId === 99 || isDragging) return
 
-  // Скрываем подсказку, если начали перемещать машину
+  event.preventDefault()
+
   if (currentHint.value && carId === currentHint.value[0]) {
     clearHint()
   }
@@ -356,14 +419,54 @@ const dragOver = (event) => {
   }
 }
 
-const endDrag = () => {
-  if (!isDragging) return
-  document.querySelectorAll('.cell.active').forEach(el => el.classList.remove('active'))
-  isDragging = false
-  selectedCar.value = null
+const handleMouseUp = (event) => {
+  if (isDragging) {
+    endDrag()
+  }
 }
 
-// Алгоритм A* для подсказок
+const handleMouseLeave = (event) => {
+  if (isDragging && event.buttons === 0) {
+    endDrag()
+  }
+}
+
+const endDrag = () => {
+  if (!isDragging) return
+  
+  document.querySelectorAll('.cell.active').forEach(el => {
+    el.classList.remove('active')
+  })
+  
+  isDragging = false
+  selectedCar.value = null
+  dragStartPosition = { x: 0, y: 0 }
+}
+
+// Event listeners setup
+const setupEventListeners = () => {
+  document.addEventListener('mouseup', handleMouseUp)
+  if (gameBoardRef.value) {
+    gameBoardRef.value.addEventListener('mouseleave', handleMouseLeave)
+  }
+}
+
+const cleanupEventListeners = () => {
+  document.removeEventListener('mouseup', handleMouseUp)
+  if (gameBoardRef.value) {
+    gameBoardRef.value.removeEventListener('mouseleave', handleMouseLeave)
+  }
+}
+
+// Lifecycle hooks
+onMounted(() => {
+  setupEventListeners()
+})
+
+onBeforeUnmount(() => {
+  cleanupEventListeners()
+})
+// Hint system (A* algorithm)
 const parseGrid = (grid) => {
   const cars = []
   const rows = grid.length
@@ -373,7 +476,7 @@ const parseGrid = (grid) => {
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const cell = grid[row][col]
-      if (cell !== 0 && cell !== 99) {
+      if (cell > 0 && cell !== 99) {
         carIds.add(cell)
       }
     }
@@ -397,8 +500,8 @@ const parseGrid = (grid) => {
     if (positions.length > 1) {
       orientation = positions[0].row === positions[1].row ? 'h' : 'v'
     } else {
-      const canMoveRight = positions[0].col < cols - 1 && grid[positions[0].row][positions[0].col + 1] === 0
-      const canMoveLeft = positions[0].col > 0 && grid[positions[0].row][positions[0].col - 1] === 0
+      const canMoveRight = positions[0].col < cols - 1 && grid[positions[0].row][positions[0].col + 1] <= 0
+      const canMoveLeft = positions[0].col > 0 && grid[positions[0].row][positions[0].col - 1] <= 0
       orientation = canMoveRight || canMoveLeft ? 'h' : 'v'
     }
 
@@ -436,7 +539,7 @@ const heuristic = (grid, cars) => {
 
   const exitCol = redCar.col + redCar.length
   for (let col = exitCol; col < 6; col++) {
-    if (grid[2][col] !== 0 && grid[2][col] !== 99) {
+    if (grid[2][col] > 0 && grid[2][col] !== 99) {
       blocking++
     }
   }
@@ -445,73 +548,78 @@ const heuristic = (grid, cars) => {
 }
 
 const getPossibleMoves = (grid, cars) => {
-  const moves = []
+  const moves = [];
   cars.forEach((car, i) => {
     if (car.orientation === 'h') {
       // Left
-      let maxMove = 0
+      let maxMove = 0;
       for (let dist = 1; dist <= car.col; dist++) {
-        if (grid[car.row][car.col - dist] === 0) {
-          maxMove = dist
+        const cell = grid[car.row][car.col - dist];
+        if (cell <= 0 && cell !== -1) { // Пусто или не стена
+          maxMove = dist;
         } else {
-          break
+          break;
         }
       }
-      if (maxMove > 0) moves.push([i, 'left', maxMove])
+      if (maxMove > 0) moves.push([i, 'left', maxMove]);
 
       // Right
-      maxMove = 0
+      maxMove = 0;
       if (car.id === 1) {
-        const maxPossible = 6 - (car.col + car.length)
+        const maxPossible = 6 - (car.col + car.length);
         for (let dist = 1; dist <= maxPossible; dist++) {
+          const cell = grid[car.row][car.col + car.length - 1 + dist];
           if (car.col + car.length - 1 + dist < 6) {
-            if (grid[car.row][car.col + car.length - 1 + dist] === 0) {
-              maxMove = dist
+            if (cell <= 0 && cell !== -1) {
+              maxMove = dist;
             } else {
-              break
+              break;
             }
           } else if (car.col + car.length - 1 + dist === 6) {
-            maxMove = dist
-            break
+            maxMove = dist;
+            break;
           }
         }
       } else {
         for (let dist = 1; dist <= 6 - (car.col + car.length); dist++) {
-          if (grid[car.row][car.col + car.length - 1 + dist] === 0) {
-            maxMove = dist
+          const cell = grid[car.row][car.col + car.length - 1 + dist];
+          if (cell <= 0 && cell !== -1) {
+            maxMove = dist;
           } else {
-            break
+            break;
           }
         }
       }
-      if (maxMove > 0) moves.push([i, 'right', maxMove])
+      if (maxMove > 0) moves.push([i, 'right', maxMove]);
     } else {
       // Up
-      let maxMove = 0
+      let maxMove = 0;
       for (let dist = 1; dist <= car.row; dist++) {
-        if (grid[car.row - dist][car.col] === 0) {
-          maxMove = dist
+        const cell = grid[car.row - dist][car.col];
+        if (cell <= 0 && cell !== -1) {
+          maxMove = dist;
         } else {
-          break
+          break;
         }
       }
-      if (maxMove > 0) moves.push([i, 'up', maxMove])
+      if (maxMove > 0) moves.push([i, 'up', maxMove]);
 
       // Down
-      maxMove = 0
+      maxMove = 0;
       for (let dist = 1; dist <= 6 - (car.row + car.length); dist++) {
-        if (grid[car.row + car.length - 1 + dist][car.col] === 0) {
-          maxMove = dist
+        const cell = grid[car.row + car.length - 1 + dist][car.col];
+        if (cell <= 0 && cell !== -1) {
+          maxMove = dist;
         } else {
-          break
+          break;
         }
       }
-      if (maxMove > 0) moves.push([i, 'down', maxMove])
+      if (maxMove > 0) moves.push([i, 'down', maxMove]);
     }
-  })
+  });
 
-  return moves
-}
+  return moves;
+};
 
 const applyMove = (grid, cars, move) => {
   const [carIdx, direction, distance] = move
@@ -653,7 +761,6 @@ const showHint = async () => {
       const direction = currentHint.value[1]
       const distance = currentHint.value[2]
       
-      // Определяем стрелку направления
       switch(direction) {
         case 'left': hintArrow.value = '←'; break
         case 'right': hintArrow.value = '→'; break
@@ -661,7 +768,6 @@ const showHint = async () => {
         case 'down': hintArrow.value = '↓'; break
       }
       
-      // Клетки машины
       hintCarCells.value = []
       for (let i = 0; i < car.length; i++) {
         if (car.orientation === 'h') {
@@ -671,7 +777,6 @@ const showHint = async () => {
         }
       }
       
-      // Клетки назначения
       hintMoveCells.value = []
       if (car.orientation === 'h') {
         const newCol = direction === 'left' ? car.col - distance : car.col + distance
@@ -684,8 +789,6 @@ const showHint = async () => {
           hintMoveCells.value.push({ row: newRow + i, col: car.col })
         }
       }
-      
-      // Не устанавливаем таймер автоматического скрытия
     } else {
       alert('Решение не найдено или вы уже у цели!')
     }
@@ -697,3 +800,29 @@ const showHint = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Add these styles for walls and empty cells */
+.cell.wall {
+  background-color: #333;
+  position: relative;
+  overflow: hidden;
+}
+
+.cell.wall::before,
+.cell.wall::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom right, transparent 45%, #ff0000 45%, #ff0000 55%, transparent 55%);
+}
+
+.cell.wall::after {
+  background: linear-gradient(to top right, transparent 45%, #ff0000 45%, #ff0000 55%, transparent 55%);
+}
+
+/* Rest of your existing styles... */
+</style>
