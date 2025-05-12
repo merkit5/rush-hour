@@ -12,7 +12,7 @@ RED_ROW = 2  # 0-based index (3rd row)
 RED_LENGTH = 2
 MAX_CARS = 16
 MAX_ATTEMPTS = 5000000
-WALL_PROBABILITY = 0.5  # Вероятность появления стены в ячейке
+WALL_PROBABILITY = 0.15  # Вероятность появления стены в ячейке
 
 # Difficulty thresholds
 EASY_MIN = 10
@@ -22,9 +22,9 @@ MEDIUM_MAX = 24
 HARD_MIN = 25
 
 # Output files
-EASY_FILE = "easy.txt"
-MEDIUM_FILE = "medium.txt"
-HARD_FILE = "hard.txt"
+EASY_FILE = "../frontend/src/levels/easy.js"
+MEDIUM_FILE = "../frontend/src/levels/medium.js"
+HARD_FILE = "../frontend/src/levels/hard.js"
 
 
 class RushHourGenerator:
@@ -40,19 +40,24 @@ class RushHourGenerator:
         self.total_generated = 0
 
     def load_existing_levels(self):
-        """Load existing levels from files to avoid duplicates"""
+        """Load existing levels from JS files only to avoid duplicates"""
         for fname in [EASY_FILE, MEDIUM_FILE, HARD_FILE]:
-            if os.path.exists(fname):
+            try:
                 with open(fname, 'r') as f:
-                    for line in f:
-                        config = line.split(',')[0]
-                        self.seen_configs.add(config)
-                        if fname == EASY_FILE:
-                            self.easy_count += 1
-                        elif fname == MEDIUM_FILE:
-                            self.medium_count += 1
-                        elif fname == HARD_FILE:
-                            self.hard_count += 1
+                    content = f.read()
+                    # Извлекаем уровни из JS-файла
+                    start = content.find('[') + 1
+                    end = content.find(']', start)
+                    levels_str = content[start:end]
+                    
+                    # Обрабатываем каждый уровень
+                    for line in levels_str.split('\n'):
+                        line = line.strip()
+                        if line.startswith('"') and line.endswith('"'):
+                            config = line[1:-1]
+                            self.seen_configs.add(config)
+            except FileNotFoundError:
+                continue
 
     def generate_smart_config(self, difficulty=None):
         """Smart configuration generation with walls and difficulty awareness"""
@@ -455,74 +460,101 @@ class RushHourGenerator:
         return new_grid, new_cars
 
     def save_config(self, config, difficulty, steps):
-        """Save configuration to appropriate file"""
+        """Save configuration to appropriate file in JS format"""
         filename = {
             'easy': EASY_FILE,
             'medium': MEDIUM_FILE,
             'hard': HARD_FILE
         }[difficulty]
 
-        with open(filename, 'a') as f:
-            f.write(f"{config},{steps}\n")
+        # Читаем текущее содержимое файла
+        try:
+            with open(filename, 'r') as f:
+                content = f.read().strip()
+        except FileNotFoundError:
+            content = "export const {}Levels = [\n]".format(difficulty)
 
-        if difficulty == 'easy':
-            self.easy_count += 1
-        elif difficulty == 'medium':
-            self.medium_count += 1
-        else:
-            self.hard_count += 1
+        # Если файл пустой или не содержит массива, инициализируем его
+        if "export const" not in content:
+            content = "export const {}Levels = [\n]".format(difficulty)
+
+        # Удаляем последнюю скобку и новую строку
+        if content.endswith("]"):
+            content = content[:-1]
+        
+        # Добавляем новую конфигурацию
+        if not content.endswith("[\n"):
+            content += ",\n"
+        content += f'"{config}"\n]'
+
+        # Записываем обратно в файл
+        with open(filename, 'w') as f:
+            f.write(content)
 
     def print_progress(self):
         """Print current generation progress"""
         elapsed = time.time() - self.start_time
         print(f"\n--- Progress after {elapsed:.1f} seconds ---")
-        print(f"Easy levels: {self.easy_count}/50")
-        print(f"Medium levels: {self.medium_count}/50")
-        print(f"Hard levels: {self.hard_count}/50")
-        print(f"Unique configs tried: {len(self.seen_configs)}")
-        print(f"Unsolvable configs: {len(self.unsolvable_configs)}")
+        print(f"Easy levels generated: {self.easy_count}/15")
+        print(f"Medium levels generated: {self.medium_count}/15")
+        print(f"Hard levels generated: {self.hard_count}/15")
         print("-----------------------------\n")
 
     def run(self):
-        """Main generation loop with optimized strategy"""
-        print("Starting optimized level generator with walls...")
-        print(f"Target: 50 easy ({EASY_MIN}-{EASY_MAX} steps), "
-              f"50 medium ({MEDIUM_MIN}-{MEDIUM_MAX} steps), "
-              f"50 hard ({HARD_MIN}+ steps)")
+        """Main generation loop - generates exactly 15 levels of each difficulty"""
+        print("Starting level generator...")
+        print(f"Target: 15 easy, 15 medium, 15 hard levels")
 
+        # Сбрасываем счетчики
+        self.easy_count = 0
+        self.medium_count = 0
+        self.hard_count = 0
+        
         attempt = 0
         last_print = 0
 
-        # Generate all levels together, not in separate phases
-        while (self.easy_count < 50 or
-               self.medium_count < 50 or
-               self.hard_count < 50) and attempt < MAX_ATTEMPTS:
-
+        while (self.easy_count < 15 or 
+            self.medium_count < 15 or 
+            self.hard_count < 15) and attempt < MAX_ATTEMPTS:
+            
             attempt += 1
-            # Для hard уровней используем специальную генерацию
-            difficulty_target = None
-            if self.hard_count < 50 and random.random() < 0.5:
+            
+            # Выбираем целевую сложность
+            if self.hard_count < 15 and random.random() < 0.5:
                 difficulty_target = 'hard'
+            elif self.medium_count < 15 and random.random() < 0.5:
+                difficulty_target = 'medium'
+            else:
+                difficulty_target = 'easy'
 
             config = self.generate_smart_config(difficulty=difficulty_target)
-
+            
             if not config:
                 continue
 
             result = self.solve_and_classify(config)
-
+            
             if not result:
                 continue
-
+                
             difficulty, steps = result
-
-            # Save only if we need this difficulty
-            if (difficulty == 'easy' and self.easy_count < 50) or \
-                    (difficulty == 'medium' and self.medium_count < 50) or \
-                    (difficulty == 'hard' and self.hard_count < 50):
+            
+            # Сохраняем только если это нужная сложность
+            if (difficulty == 'easy' and self.easy_count < 15) or \
+            (difficulty == 'medium' and self.medium_count < 15) or \
+            (difficulty == 'hard' and self.hard_count < 15):
+                
                 self.save_config(config, difficulty, steps)
+                
+                if difficulty == 'easy':
+                    self.easy_count += 1
+                elif difficulty == 'medium':
+                    self.medium_count += 1
+                else:
+                    self.hard_count += 1
+                    
                 print(f"Generated {difficulty} level with {steps} steps")
-
+            
             if time.time() - last_print > 10:
                 self.print_progress()
                 last_print = time.time()
@@ -534,6 +566,7 @@ class RushHourGenerator:
         print(f"Total unique configurations: {len(self.seen_configs)}")
         print(f"Total unsolvable configurations: {len(self.unsolvable_configs)}")
 
+        
 if __name__ == "__main__":
     generator = RushHourGenerator()
     generator.run()
