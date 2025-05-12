@@ -1,4 +1,5 @@
 export const hardLevels = [
+    "FooHHHFooJoEFAAJGEIIDJGoooDBBBoCCooo",
     "IBBxooIooLDDJAALooJoKEEMFFKooMGGHHHM",
     "BBoKMxDDDKMoIAALooIoJLEEooJFFNoGGoxN",
     "IBBxooIooLDDJAALooJoKEEMFFKooMGGHHHM",

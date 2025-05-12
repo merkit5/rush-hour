@@ -1,13 +1,5 @@
 export const mediumLevels = [
-    // Более сложные уровни
-    [
-      [2, 2, 3, 0, 4, 5, 0],
-      [0, 0, 3, 0, 4, 5, 0],
-      [0, 0, 3, 1, 1, 5, 99],
-      [6, 6, 6, 7, 0, 0, 0],
-      [9, 10, 10, 7, 8, 8, 0],
-      [9, 0, 11, 11, 0, 0, 0]
-    ],
+    "LLLEMoooFEMDAAFGKDHNNGKoHJJGoCoBBIIC",
     "BBIoxoGHIooLGHAAKLGDDDKooooJEEFFoJoo",
     "GxoKCCGooKDDHAAKoMHIJEEMoIJoLNFFFoLN",
     "BBBCCNoDDoxNAAKoooJoKFFxJHHLMoIIILMo",
