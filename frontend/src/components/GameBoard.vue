@@ -1,7 +1,19 @@
 <template>
   <div class="game-container">
+    <!-- Size Selection -->
+    <div v-if="!sizeSelected" class="modal-overlay">
+      <div class="modal">
+        <h2>Выберите размер доски</h2>
+        <div class="size-buttons">
+          <button @click="selectSize('5x5')">5×5</button>
+          <button @click="selectSize('6x6')">6×6</button>
+          <button @click="selectSize('7x7')">7×7</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Difficulty Selection -->
-    <div v-if="!levelLoaded" class="modal-overlay">
+    <div v-if="sizeSelected && !levelLoaded" class="modal-overlay">
       <div class="modal">
         <h2>Выберите сложность</h2>
         <div class="difficulty-buttons">
@@ -9,6 +21,7 @@
           <button @click="startGame('medium')">Средний</button>
           <button @click="startGame('hard')">Сложный</button>
         </div>
+        <button class="back-button" @click="sizeSelected = false">← Назад</button>
       </div>
     </div>
 
@@ -25,11 +38,15 @@
               'wall': cell === -1,
               'car': cell > 0 && cell !== 99,
               'exit': cell === 99,
-              'hidden': colIndex === 6 && cell !== 99,
+              'hidden': colIndex === grid[0].length-1 && cell !== 99,
               'hint-move': isHintMoveCell(rowIndex, colIndex),
               'hint-car': isHintCarCell(rowIndex, colIndex)
             }"
-            :style="cell > 0 && cell !== 99 ? { backgroundColor: getCarColor(cell) } : {}"
+            :style="{
+              backgroundColor: cell > 0 && cell !== 99 ? getCarColor(cell) : '',
+              width: `${cellSize}px`,
+              height: `${cellSize}px`
+            }"
             @mousedown="startDrag($event, rowIndex, colIndex)"
             @mousemove="dragOver($event)"
             @mouseup="endDrag"
@@ -68,11 +85,19 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { easyLevels } from '../levels/easy'
-import { mediumLevels } from '../levels/medium'
-import { hardLevels } from '../levels/hard'
+import { easyLevels_5x5 } from '../levels/easy_5x5'
+import { mediumLevels_5x5 } from '../levels/medium_5x5'
+import { hardLevels_5x5 } from '../levels/hard_5x5'
+import { easyLevels_6x6 } from '../levels/easy_6x6'
+import { mediumLevels_6x6 } from '../levels/medium_6x6'
+import { hardLevels_6x6 } from '../levels/hard_6x6'
+import { easyLevels_7x7 } from '../levels/easy_7x7'
+import { mediumLevels_7x7 } from '../levels/medium_7x7'
+import { hardLevels_7x7 } from '../levels/hard_7x7'
 
 // Game state
+const sizeSelected = ref(false)
+const selectedSize = ref('6x6')
 const levelLoaded = ref(false)
 const currentDifficulty = ref('')
 const currentLevelIndex = ref(0)
@@ -92,45 +117,68 @@ const gameBoardRef = ref(null)
 
 // Car colors
 const colors = [
-  "#4ecdc4", // бирюзовый
-  "#ffe66d", // светло-желтый
-  "#ff7b00", // оранжевый
-  "#54a0ff", // небесно-синий
-  "#5f27cd", // фиолетовый
-  "#10ac84", // морская волна
-  "#f368e0", // розовый 
-  "#346194", // стальной синий
-  "#037f7f", // темный бирюзовый
-  "#ffcc29", // золотисто-желтый
-  "#2ed573", // салатовый
-  "#3742fa", // насыщенный синий
-  "#8c7ae6", // лавандовый
-  "#44bd32", // травяной зеленый
-  "#40739e", // серо-синий
-  "#D980FA", // сиреневый
-  "#A3CB38", // лаймово-зеленый
-  "#1289A7"  // голубовато-синий
+  "#4ecdc4", "#ffe66d", "#ff7b00", "#54a0ff", 
+  "#5f27cd", "#10ac84", "#f368e0", "#346194",
+  "#037f7f", "#ffcc29", "#2ed573", "#3742fa",
+  "#8c7ae6", "#44bd32", "#40739e", "#D980FA",
+  "#A3CB38", "#1289A7"
 ];
-
 
 // Drag state
 const selectedCar = ref(null)
 let isDragging = false
 let dragStartPosition = { x: 0, y: 0 }
 
+// В разделе computed свойств, добавьте:
+const cellSize = computed(() => {
+  switch(selectedSize.value) {
+    case '5x5': return 70
+    case '6x6': return 60
+    case '7x7': return 50
+    default: return 60
+  }
+})
+
 // Computed properties
 const currentLevels = computed(() => {
-  switch (currentDifficulty.value) {
-    case 'easy': return easyLevels
-    case 'medium': return mediumLevels
-    case 'hard': return hardLevels
-    default: return easyLevels
+  if (selectedSize.value === '5x5') {
+    switch (currentDifficulty.value) {
+      case 'easy': return easyLevels_5x5
+      case 'medium': return mediumLevels_5x5
+      case 'hard': return hardLevels_5x5
+      default: return easyLevels_5x5
+    }
+  } else if (selectedSize.value === '7x7') {
+    switch (currentDifficulty.value) {
+      case 'easy': return easyLevels_7x7
+      case 'medium': return mediumLevels_7x7
+      case 'hard': return hardLevels_7x7
+      default: return easyLevels_7x7
+    }
+  } else { // 6x6 по умолчанию
+    switch (currentDifficulty.value) {
+      case 'easy': return easyLevels_6x6
+      case 'medium': return mediumLevels_6x6
+      case 'hard': return hardLevels_6x6
+      default: return easyLevels_6x6
+    }
   }
 })
 
 const hasNextLevel = computed(() => 
   currentLevelIndex.value < currentLevels.value.length - 1
 )
+
+const gridWidth = computed(() => parseInt(selectedSize.value[0]))
+const gridHeight = computed(() => parseInt(selectedSize.value[2]))
+const exitRow = computed(() => {
+  switch(selectedSize.value) {
+    case '5x5': return 2
+    case '6x6': return 2
+    case '7x7': return 3
+    default: return 2
+  }
+})
 
 // Helper functions
 const isHintMoveCell = (row, col) => {
@@ -149,14 +197,19 @@ const clearHint = () => {
 
 // Level parsing
 const parseStringLevel = (levelStr) => {
-  const grid = Array(6).fill().map(() => Array(7).fill(0))
-  grid[2][6] = 99 // Exit position
+  const width = gridWidth.value
+  const height = gridHeight.value
+  
+  const grid = Array(height).fill().map(() => Array(width + 1).fill(0))
+  
+  // Set exit position
+  grid[exitRow.value][width] = 99
   
   const chars = levelStr.split('')
   let charIndex = 0
   
-  for (let row = 0; row < 6; row++) {
-    for (let col = 0; col < 6; col++) {
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
       if (charIndex >= chars.length) continue
       
       const char = chars[charIndex++]
@@ -183,6 +236,11 @@ const getCarColor = (carId) => {
 }
 
 // Game control
+const selectSize = (size) => {
+  selectedSize.value = size
+  sizeSelected.value = true
+}
+
 const startGame = (difficulty) => {
   currentDifficulty.value = difficulty
   currentLevelIndex.value = 0
@@ -217,7 +275,7 @@ const loadLevel = () => {
 }
 
 const checkWin = () => {
-  isWin.value = grid.value[2]?.[6] === 1
+  isWin.value = grid.value[exitRow.value]?.[gridWidth.value] === 1
 }
 
 const restartGame = () => {
@@ -275,31 +333,32 @@ const getCarDirection = (row, col) => {
 const canMove = (row, col, direction, carDirection) => {
   const carId = grid.value[row][col]
   const carLength = getCarLength(carId)
+  const width = gridWidth.value
+  const height = gridHeight.value
 
-  if (carId === -1) return false
+  if (carId <= 0 || carId === 99) return false
 
   if (carDirection === 'horizontal') {
     if (direction === 'left') {
-      if (col === 6 && carId !== 1) return false
+      if (col === width && carId !== 1) return false
       return col > 0 && grid.value[row][col - 1] <= 0 && grid.value[row][col - 1] !== -1
     }
     if (direction === 'right') {
       const rightEdge = col + carLength - 1
-      if (rightEdge + 1 === 6 && carId === 1 && row === 2) {
-        return grid.value[2][6] === 99
+      if (rightEdge + 1 === width && carId === 1 && row === exitRow.value) {
+        return grid.value[exitRow.value][width] === 99
       }
-      if (rightEdge + 1 >= 6 && carId !== 1) return false
-      if (rightEdge + 1 >= 7) return false
+      if (rightEdge + 1 >= width && carId !== 1) return false
       return grid.value[row][rightEdge + 1] <= 0 && grid.value[row][rightEdge + 1] !== -1
     }
   } else if (carDirection === 'vertical') {
-    if (col === 6) return false
+    if (col === width) return false
     if (direction === 'up') {
       return row > 0 && grid.value[row - 1][col] <= 0 && grid.value[row - 1][col] !== -1
     }
     if (direction === 'down') {
       const bottomEdge = row + carLength - 1
-      return bottomEdge + 1 < grid.value.length && 
+      return bottomEdge + 1 < height && 
              grid.value[bottomEdge + 1][col] <= 0 && 
              grid.value[bottomEdge + 1][col] !== -1
     }
@@ -320,8 +379,10 @@ const moveCar = (direction) => {
   const { cells, id, direction: carDirection } = selectedCar.value
   const firstCell = cells[0]
   const lastCell = cells[cells.length - 1]
+  const width = gridWidth.value
 
-  if (direction === 'right' && lastCell.col === 5 && id !== 1) return
+  // Убрать проверку с жестко закодированным значением
+  if (direction === 'right' && lastCell.col === width - 1 && id !== 1) return
 
   if (canMove(firstCell.row, firstCell.col, direction, carDirection)) {
     saveCurrentState()
@@ -523,239 +584,245 @@ const parseGrid = (grid) => {
   return cars
 }
 
-const isGoalState = (cars) => {
-  const redCar = cars.find(car => car.id === 1)
-  return redCar && redCar.orientation === 'h' && redCar.row === 2 && 
-         redCar.col + redCar.length === 6
-}
+const isGoalState = (cars, exitRow, exitCol) => {
+  const redCar = cars.find(car => car.id === 1);
+  return redCar && 
+         redCar.orientation === 'h' && 
+         redCar.row === exitRow && 
+         redCar.col + redCar.length === exitCol;
+};
 
-const heuristic = (grid, cars) => {
-  let blocking = 0
-  const redCar = cars.find(car => car.id === 1)
-
-  if (!redCar || redCar.orientation !== 'h' || redCar.row !== 2) {
-    return Infinity
+const heuristic = (grid, cars, exitRow, exitCol) => {
+  const redCar = cars.find(car => car.id === 1);
+  if (!redCar || redCar.orientation !== 'h' || redCar.row !== exitRow) {
+    return 1000;
   }
 
-  const exitCol = redCar.col + redCar.length
-  for (let col = exitCol; col < 6; col++) {
-    if (grid[2][col] > 0 && grid[2][col] !== 99) {
-      blocking++
+  let blocking = 0;
+  const exitColRed = redCar.col + redCar.length;
+  
+  for (let col = exitColRed; col < exitCol; col++) {
+    if (grid[exitRow][col] > 0 && grid[exitRow][col] !== 99) {
+      blocking++;
     }
   }
 
-  return blocking
-}
+  return blocking;
+};
 
-const getPossibleMoves = (grid, cars) => {
+const getPossibleMoves = (grid, cars, width, height, exitRow) => {
   const moves = [];
+  
   cars.forEach((car, i) => {
     if (car.orientation === 'h') {
-      // Left
-      let maxMove = 0;
+      // Left moves
+      let leftMove = 0;
       for (let dist = 1; dist <= car.col; dist++) {
-        const cell = grid[car.row][car.col - dist];
-        if (cell <= 0 && cell !== -1) { // Пусто или не стена
-          maxMove = dist;
+        if (grid[car.row][car.col - dist] === 0) {
+          leftMove = dist;
         } else {
           break;
         }
       }
-      if (maxMove > 0) moves.push([i, 'left', maxMove]);
+      if (leftMove > 0) moves.push([i, 'left', leftMove]);
 
-      // Right
-      maxMove = 0;
-      if (car.id === 1) {
-        const maxPossible = 6 - (car.col + car.length);
-        for (let dist = 1; dist <= maxPossible; dist++) {
-          const cell = grid[car.row][car.col + car.length - 1 + dist];
-          if (car.col + car.length - 1 + dist < 6) {
-            if (cell <= 0 && cell !== -1) {
-              maxMove = dist;
-            } else {
-              break;
-            }
-          } else if (car.col + car.length - 1 + dist === 6) {
-            maxMove = dist;
-            break;
-          }
-        }
-      } else {
-        for (let dist = 1; dist <= 6 - (car.col + car.length); dist++) {
-          const cell = grid[car.row][car.col + car.length - 1 + dist];
-          if (cell <= 0 && cell !== -1) {
-            maxMove = dist;
+      // Right moves
+      let rightMove = 0;
+      for (let dist = 1; dist <= (width - (car.col + car.length)); dist++) {
+        const newCol = car.col + car.length - 1 + dist;
+        if (newCol < width) {
+          if (grid[car.row][newCol] === 0) {
+            rightMove = dist;
           } else {
             break;
           }
+        } else if (newCol === width && car.id === 1) {
+          rightMove = dist;
+          break;
         }
       }
-      if (maxMove > 0) moves.push([i, 'right', maxMove]);
+      if (rightMove > 0) moves.push([i, 'right', rightMove]);
     } else {
-      // Up
-      let maxMove = 0;
+      // Up moves
+      let upMove = 0;
       for (let dist = 1; dist <= car.row; dist++) {
-        const cell = grid[car.row - dist][car.col];
-        if (cell <= 0 && cell !== -1) {
-          maxMove = dist;
+        if (grid[car.row - dist][car.col] === 0) {
+          upMove = dist;
         } else {
           break;
         }
       }
-      if (maxMove > 0) moves.push([i, 'up', maxMove]);
+      if (upMove > 0) moves.push([i, 'up', upMove]);
 
-      // Down
-      maxMove = 0;
-      for (let dist = 1; dist <= 6 - (car.row + car.length); dist++) {
-        const cell = grid[car.row + car.length - 1 + dist][car.col];
-        if (cell <= 0 && cell !== -1) {
-          maxMove = dist;
+      // Down moves
+      let downMove = 0;
+      for (let dist = 1; dist <= (height - (car.row + car.length)); dist++) {
+        if (grid[car.row + car.length - 1 + dist][car.col] === 0) {
+          downMove = dist;
         } else {
           break;
         }
       }
-      if (maxMove > 0) moves.push([i, 'down', maxMove]);
+      if (downMove > 0) moves.push([i, 'down', downMove]);
     }
   });
 
   return moves;
 };
 
-const applyMove = (grid, cars, move) => {
-  const [carIdx, direction, distance] = move
-  const car = cars[carIdx]
-  const newGrid = grid.map(row => [...row])
-  const newCars = cars.map(c => ({ ...c }))
+const applyMove = (grid, cars, move, width, height) => {
+  const [carIdx, direction, distance] = move;
+  const car = cars[carIdx];
+  const newGrid = grid.map(row => [...row]);
+  const newCars = cars.map(c => ({ ...c }));
 
+  // Clear old position
   for (let i = 0; i < car.length; i++) {
     if (car.orientation === 'h') {
-      newGrid[car.row][car.col + i] = 0
+      newGrid[car.row][car.col + i] = 0;
     } else {
-      newGrid[car.row + i][car.col] = 0
+      newGrid[car.row + i][car.col] = 0;
     }
   }
 
+  // Update position
   if (direction === 'left') {
-    newCars[carIdx].col -= distance
+    newCars[carIdx].col -= distance;
   } else if (direction === 'right') {
-    newCars[carIdx].col += distance
+    newCars[carIdx].col += distance;
   } else if (direction === 'up') {
-    newCars[carIdx].row -= distance
+    newCars[carIdx].row -= distance;
   } else if (direction === 'down') {
-    newCars[carIdx].row += distance
+    newCars[carIdx].row += distance;
   }
 
+  // Fill new position
   for (let i = 0; i < newCars[carIdx].length; i++) {
     if (newCars[carIdx].orientation === 'h') {
-      const col = newCars[carIdx].col + i
-      if (col < 6) {
-        newGrid[newCars[carIdx].row][col] = car.id
+      const col = newCars[carIdx].col + i;
+      if (col < width) {
+        newGrid[newCars[carIdx].row][col] = car.id;
       }
     } else {
-      newGrid[newCars[carIdx].row + i][newCars[carIdx].col] = car.id
+      newGrid[newCars[carIdx].row + i][newCars[carIdx].col] = car.id;
     }
   }
 
-  return [newGrid, newCars]
-}
+  return [newGrid, newCars];
+};
 
 const solveRushHourAStar = (initialGrid) => {
   return new Promise((resolve) => {
     setTimeout(() => {
       try {
-        const initialCars = parseGrid(initialGrid)
+        const initialCars = parseGrid(initialGrid);
+        const width = gridWidth.value;
+        const height = gridHeight.value;
+        const exitRowValue = exitRow.value;
+        const exitCol = width;
         
-        if (isGoalState(initialCars)) {
-          resolve([])
-          return
+        if (isGoalState(initialCars, exitRowValue, exitCol)) {
+          resolve([]);
+          return;
         }
 
-        const openSet = []
-        openSet.push({ 
+        const openSet = new PriorityQueue((a, b) => a.fScore - b.fScore);
+        openSet.push({
           fScore: 0,
           gScore: 0,
           grid: initialGrid,
           cars: initialCars,
           path: []
-        })
+        });
 
-        const visited = new Map()
-        const initialStateKey = gridToKey(initialGrid)
-        visited.set(initialStateKey, 0)
+        const visited = new Map();
+        const initialStateKey = gridToKey(initialGrid);
+        visited.set(initialStateKey, 0);
 
-        const MAX_ITERATIONS = 20000
-        let iterations = 0
-
-        while (openSet.length > 0 && iterations < MAX_ITERATIONS) {
-          iterations++
+        while (!openSet.isEmpty()) {
+          const current = openSet.pop();
           
-          if (openSet.length > 1) {
-            openSet.sort((a, b) => a.fScore - b.fScore)
-          }
-          const current = openSet.shift()
-          
-          const currentKey = gridToKey(current.grid)
-          if (visited.has(currentKey)) {
-            const bestGScore = visited.get(currentKey)
-            if (current.gScore > bestGScore) {
-              continue
-            }
+          if (isGoalState(current.cars, exitRowValue, exitCol)) {
+            resolve(current.path);
+            return;
           }
 
-          if (isGoalState(current.cars)) {
-            resolve(current.path)
-            return
-          }
-
-          const moves = getPossibleMoves(current.grid, current.cars)
+          const moves = getPossibleMoves(current.grid, current.cars, width, height, exitRowValue);
           for (const move of moves) {
-            const [newGrid, newCars] = applyMove(current.grid, current.cars, move)
-            const newKey = gridToKey(newGrid)
+            const [newGrid, newCars] = applyMove(current.grid, current.cars, move, width, height);
+            const newKey = gridToKey(newGrid);
             
-            const tentativeGScore = current.gScore + 1
+            const newG = current.gScore + 1;
             
-            if (!visited.has(newKey) || tentativeGScore < visited.get(newKey)) {
-              visited.set(newKey, tentativeGScore)
+            if (!visited.has(newKey) || newG < visited.get(newKey)) {
+              visited.set(newKey, newG);
               
-              const hScore = heuristic(newGrid, newCars)
-              const fScore = tentativeGScore + hScore
+              const h = heuristic(newGrid, newCars, exitRowValue, exitCol);
+              const f = newG + h;
               
               openSet.push({
-                fScore,
-                gScore: tentativeGScore,
+                fScore: f,
+                gScore: newG,
                 grid: newGrid,
                 cars: newCars,
                 path: [...current.path, move]
-              })
+              });
             }
           }
         }
         
-        console.log(`A* завершен за ${iterations} итераций`)
-        resolve(null)
+        resolve(null);
       } catch (error) {
-        console.error('Ошибка в A*:', error)
-        resolve(null)
+        console.error('A* error:', error);
+        resolve(null);
       }
-    }, 0)
-  })
+    }, 0);
+  });
+};
+
+// Простая реализация PriorityQueue
+class PriorityQueue {
+  constructor(comparator = (a, b) => a - b) {
+    this.elements = [];
+    this.comparator = comparator;
+  }
+
+  push(element) {
+    this.elements.push(element);
+    this.elements.sort(this.comparator);
+  }
+
+  pop() {
+    return this.elements.shift();
+  }
+
+  isEmpty() {
+    return this.elements.length === 0;
+  }
 }
 
 const gridToKey = (grid) => {
-  return grid.map(row => row.slice(0, 6).join(',')).join('|')
+  const width = gridWidth.value
+  return grid.map(row => row.slice(0, width).join(',')).join('|')
 }
 
 const showHint = async () => {
-  if (isHintCalculating.value) return
+  if (isHintCalculating.value) return;
   
-  clearHint()
-  isHintCalculating.value = true
+  clearHint();
+  isHintCalculating.value = true;
   
   try {
-    const solution = await solveRushHourAStar(grid.value)
+    console.log("Начало вычисления подсказки...");
+    const startTime = performance.now();
+    const solution = await solveRushHourAStar(grid.value);
+    const endTime = performance.now();
+    
+    console.log(`Вычисление заняло ${(endTime - startTime).toFixed(2)} мс`);
     
     if (solution && solution.length > 0) {
-      currentHint.value = solution[0]
+      console.log("Найденное решение:", solution[0]);
+      currentHint.value = solution[0];
       const cars = parseGrid(grid.value)
       const car = cars[currentHint.value[0]]
       const direction = currentHint.value[1]
@@ -789,40 +856,15 @@ const showHint = async () => {
           hintMoveCells.value.push({ row: newRow + i, col: car.col })
         }
       }
-    } else {
-      alert('Решение не найдено или вы уже у цели!')
+     } else {
+      console.log("Решение не найдено");
+      alert('Решение не найдено или вы уже у цели!');
     }
   } catch (error) {
-    console.error('Ошибка при вычислении подсказки:', error)
-    alert('Не удалось вычислить подсказку')
+    console.error('Ошибка при вычислении подсказки:', error);
+    alert('Не удалось вычислить подсказку');
   } finally {
-    isHintCalculating.value = false
+    isHintCalculating.value = false;
   }
-}
+};
 </script>
-
-<style scoped>
-/* Add these styles for walls and empty cells */
-.cell.wall {
-  background-color: #333;
-  position: relative;
-  overflow: hidden;
-}
-
-.cell.wall::before,
-.cell.wall::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(to bottom right, transparent 45%, #ff0000 45%, #ff0000 55%, transparent 55%);
-}
-
-.cell.wall::after {
-  background: linear-gradient(to top right, transparent 45%, #ff0000 45%, #ff0000 55%, transparent 55%);
-}
-
-/* Rest of your existing styles... */
-</style>

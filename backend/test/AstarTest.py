@@ -7,15 +7,28 @@ import io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
+def get_grid_size(level_str):
+    """Определяет размер поля на основе длины строки уровня"""
+    length = len(level_str)
+    if length == 25:  # 5x5
+        return (5, 5, 2, 5)  # rows, cols, exit_row, exit_col
+    elif length == 36:  # 6x6
+        return (6, 6, 2, 6)
+    elif length == 49:  # 7x7
+        return (7, 7, 3, 7)
+    else:
+        raise ValueError(f"Неподдерживаемый размер поля: длина строки {length}")
+
 def convert_level_string_to_grid(level_str):
     """Конвертирует строку уровня в числовую сетку"""
-    grid = [[0 for _ in range(7)] for _ in range(6)]  # 6x6 поле + выход в 7-м столбце
+    rows, cols, exit_row, exit_col = get_grid_size(level_str)
+    grid = [[0 for _ in range(cols + 1)] for _ in range(rows)]
     char_to_id = {'A': 1}  # Красная машина всегда имеет id 1
     next_id = 2
     
     for i, char in enumerate(level_str):
-        row = i // 6
-        col = i % 6
+        row = i // cols
+        col = i % cols
         if char == 'o':
             grid[row][col] = 0  # Пустая клетка
         elif char == 'x':
@@ -27,7 +40,7 @@ def convert_level_string_to_grid(level_str):
             grid[row][col] = char_to_id[char]
     
     # Добавляем выход для красной машины
-    grid[2][6] = 99
+    grid[exit_row][exit_col] = 99
     return grid
 
 def parse_grid(grid):
@@ -52,12 +65,14 @@ def parse_grid(grid):
         if len(positions) < 2:
             continue
 
+        # Определяем ориентацию машины
+        positions.sort()
         if positions[0][0] == positions[1][0]:
             orientation = 'h'
-            length = max(col for (row, col) in positions) - positions[0][1] + 1
+            length = positions[-1][1] - positions[0][1] + 1
         else:
             orientation = 'v'
-            length = max(row for (row, col) in positions) - positions[0][0] + 1
+            length = positions[-1][0] - positions[0][0] + 1
 
         cars.append({
             'id': car_id,
@@ -69,90 +84,90 @@ def parse_grid(grid):
 
     return cars
 
-def is_goal_state(cars):
+def is_goal_state(cars, exit_row, exit_col):
     """Проверяет, достигнуто ли целевое состояние"""
     for car in cars:
         if car['id'] == 1:  # Красная машина
-            return car['orientation'] == 'h' and car['row'] == 2 and car['col'] + car['length'] == 6
+            return (car['orientation'] == 'h' and 
+                    car['row'] == exit_row and 
+                    car['col'] + car['length'] == exit_col)
     return False
 
-def heuristic(grid, cars):
-    """Эвристика для A*: количество машин, блокирующих путь красной машины"""
-    blocking = 0
-    red_car = next(car for car in cars if car['id'] == 1)
-
-    if red_car['orientation'] != 'h' or red_car['row'] != 2:
+def heuristic(grid, cars, exit_row, exit_col):
+    """Унифицированная эвристика: количество машин на пути красной машины"""
+    red_car = next((car for car in cars if car['id'] == 1), None)
+    if not red_car:
         return float('inf')
 
-    exit_col = red_car['col'] + red_car['length']
-    for col in range(exit_col, 6):
-        if grid[2][col] != 0 and grid[2][col] != 99:
+    # Красная машина должна быть горизонтальной и в правильном ряду
+    if red_car['orientation'] != 'h' or red_car['row'] != exit_row:
+        return float('inf')
+
+    blocking = 0
+    exit_col_red = red_car['col'] + red_car['length']
+    
+    for col in range(exit_col_red, exit_col):
+        if grid[exit_row][col] != 0 and grid[exit_row][col] != 99:
             blocking += 1
 
-    return blocking * 3  # Увеличиваем вес для более точной эвристики
+    return blocking
 
-def get_possible_moves(grid, cars):
-    """Генерирует все возможные ходы"""
+def get_possible_moves(grid, cars, width, height, exit_row):
+    """Унифицированная генерация ходов"""
     moves = []
+    
     for i, car in enumerate(cars):
         if car['orientation'] == 'h':
             # Движение влево
-            max_move = 0
+            left_move = 0
             for dist in range(1, car['col'] + 1):
                 if grid[car['row']][car['col'] - dist] == 0:
-                    max_move = dist
+                    left_move = dist
                 else:
                     break
-            if max_move > 0:
-                moves.append((i, 'left', max_move))
+            if left_move > 0:
+                moves.append((i, 'left', left_move))
 
             # Движение вправо
-            max_move = 0
-            if car['id'] == 1:  # Особый случай для красной машины
-                max_possible = 6 - (car['col'] + car['length'])
-                for dist in range(1, max_possible + 1):
-                    if car['col'] + car['length'] - 1 + dist < 6:
-                        if grid[car['row']][car['col'] + car['length'] - 1 + dist] == 0:
-                            max_move = dist
-                        else:
-                            break
-                    elif car['col'] + car['length'] - 1 + dist == 6:  # Выход
-                        max_move = dist
-                        break
-            else:
-                for dist in range(1, 6 - (car['col'] + car['length']) + 1):
-                    if grid[car['row']][car['col'] + car['length'] - 1 + dist] == 0:
-                        max_move = dist
+            right_move = 0
+            for dist in range(1, (width - (car['col'] + car['length'])) + 1):
+                new_col = car['col'] + car['length'] - 1 + dist
+                if new_col < width:  # Обычная клетка
+                    if grid[car['row']][new_col] == 0:
+                        right_move = dist
                     else:
                         break
-            if max_move > 0:
-                moves.append((i, 'right', max_move))
+                elif new_col == width and car['id'] == 1:  # Выход для красной
+                    right_move = dist
+                    break
 
-        else:  # Вертикальные машины
+            if right_move > 0:
+                moves.append((i, 'right', right_move))
+        else:
             # Движение вверх
-            max_move = 0
+            up_move = 0
             for dist in range(1, car['row'] + 1):
                 if grid[car['row'] - dist][car['col']] == 0:
-                    max_move = dist
+                    up_move = dist
                 else:
                     break
-            if max_move > 0:
-                moves.append((i, 'up', max_move))
+            if up_move > 0:
+                moves.append((i, 'up', up_move))
 
             # Движение вниз
-            max_move = 0
-            for dist in range(1, 6 - (car['row'] + car['length']) + 1):
+            down_move = 0
+            for dist in range(1, (height - (car['row'] + car['length'])) + 1):
                 if grid[car['row'] + car['length'] - 1 + dist][car['col']] == 0:
-                    max_move = dist
+                    down_move = dist
                 else:
                     break
-            if max_move > 0:
-                moves.append((i, 'down', max_move))
+            if down_move > 0:
+                moves.append((i, 'down', down_move))
 
     return moves
 
-def apply_move(grid, cars, move):
-    """Применяет ход и возвращает новое состояние"""
+def apply_move(grid, cars, move, width, height):
+    """Унифицированное применение хода"""
     car_idx, direction, distance = move
     car = cars[car_idx]
     new_grid = [row.copy() for row in grid]
@@ -179,10 +194,11 @@ def apply_move(grid, cars, move):
     for i in range(new_cars[car_idx]['length']):
         if new_cars[car_idx]['orientation'] == 'h':
             col = new_cars[car_idx]['col'] + i
-            if col < 6:
+            if col < width:
                 new_grid[new_cars[car_idx]['row']][col] = car['id']
         else:
-            new_grid[new_cars[car_idx]['row'] + i][new_cars[car_idx]['col']] = car['id']
+            row = new_cars[car_idx]['row'] + i
+            new_grid[row][new_cars[car_idx]['col']] = car['id']
 
     return new_grid, new_cars
 
@@ -190,6 +206,7 @@ def solve_rush_hour_astar(level_str):
     """Решает уровень Rush Hour с использованием A*"""
     grid = convert_level_string_to_grid(level_str)
     initial_cars = parse_grid(grid)
+    rows, cols, exit_row, exit_col = get_grid_size(level_str)
 
     open_set = []
     heapq.heappush(open_set, (0, 0, grid, initial_cars, []))
@@ -197,29 +214,29 @@ def solve_rush_hour_astar(level_str):
     visited = set()
     g_scores = {}
 
-    initial_state_key = tuple(tuple(row[:6]) for row in grid)
+    initial_state_key = tuple(tuple(row[:cols]) for row in grid)
     g_scores[initial_state_key] = 0
 
     while open_set:
         _, g_score, current_grid, cars, path = heapq.heappop(open_set)
-        current_state_key = tuple(tuple(row[:6]) for row in current_grid)
+        current_state_key = tuple(tuple(row[:cols]) for row in current_grid)
 
         if current_state_key in visited:
             continue
         visited.add(current_state_key)
 
-        if is_goal_state(cars):
+        if is_goal_state(cars, exit_row, exit_col):
             return path
 
-        for move in get_possible_moves(current_grid, cars):
-            new_grid, new_cars = apply_move(current_grid, cars, move)
-            new_state_key = tuple(tuple(row[:6]) for row in new_grid)
+        for move in get_possible_moves(current_grid, cars, cols, rows, exit_row):
+            new_grid, new_cars = apply_move(current_grid, cars, move, cols, rows)
+            new_state_key = tuple(tuple(row[:cols]) for row in new_grid)
 
             tentative_g_score = g_score + 1
 
             if new_state_key not in g_scores or tentative_g_score < g_scores[new_state_key]:
                 g_scores[new_state_key] = tentative_g_score
-                h_score = heuristic(new_grid, new_cars)
+                h_score = heuristic(new_grid, new_cars, exit_row, exit_col)
                 f_score = tentative_g_score + h_score
                 heapq.heappush(open_set, (f_score, tentative_g_score, new_grid, new_cars, path + [move]))
 
@@ -258,5 +275,33 @@ def test_level(level_str):
 
 # Примеры использования
 if __name__ == "__main__":
-    # Простой уровень
-    test_level("FJoDDDFJoHHHAACMooEoCMoGELBIIGELBKKo")
+    # 5x5 уровень
+    test_level("xFFCKoooNNCKBIxoECKBIAAEJoBIDoEJxSODxoJGSODoLLGHH")
+
+    test_level("QUoMMooQUDDooGBBPoHIGAAPoHIEoKCCJxExKRRJoExoFFJoo")
+
+    test_level("ooBooHHxJBCCCMoJoooxMLJAAEGMLTToEGFLKKKEoFoIIIDDF")
+
+    test_level("CCoJJJoNKKEEoBNDRRMPBNDAAMPBLDQxMxFLOQHHIFoOGGoIo")
+
+    test_level("oGPPJJHxGxoKoHFoCCKEHFAASKEoFRISxoLxRIDDxLoBBMMoL")
+
+    test_level("UUOFFFPooOKKoPIIIoQxCJBAAQoCJBoDHHoJoGDEEoxoGDoox")
+
+    test_level("JJJoxooOBGEEINOBGxRINooAARINCCooDxoHoFFDoKHLLoMMK")
+
+    test_level("MLoBBxCMLOxooCMoOFGGGIAAFoooINNNHKEJJJoHKEoDDDHKo")
+
+    test_level("oDJoEQQGDJIEHoGoJIEHBLAAICOBLMKoCOBLMKxCOPoMNNFFP")
+
+    test_level("KKBRRLLDoBIISSDooGGGHoAAoMoHoCCFMJHxNoFMJUoNEEEJU")
+
+    test_level("EEMIIoJooMSSKJHoMGDKJHAAGDKOHPoFFFORPoNLooRBBNLCC")
+
+    test_level("EoIoGBBEoIoGxooJIxGHHKJAAooRKDoLLLRoDoCCCxoFFFMMx")
+
+    test_level("ooIILxxoJGoLOODJGoLCBDJoAACBDKKoEoFMQQoEoFMHHHoxx")
+
+    test_level("BBooKoooCCCKoxooIoxHJAAILoHJGMMLoFFGEELDooxPPPDoo")
+
+    test_level("oKJJJoBGKCIIIBGoCEEMoGAADPMoxQQDPHOoNNoLHORRFFLHO")

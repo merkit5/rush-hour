@@ -8,8 +8,8 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 class RushHourIDAStar:
     def __init__(self, level_str):
+        """Инициализация решателя Rush Hour с заданным уровнем"""
         self.level_str = level_str
-        # Инициализируем словари для отображения символов в ID и обратно
         self.char_to_id = {'A': 1}  # Красная машина всегда имеет id 1
         self.id_to_char = {1: 'A'}
         self.grid_params = self.get_grid_params()
@@ -92,33 +92,50 @@ class RushHourIDAStar:
                 red_car['col'] + red_car['length'] == self.exit_col)
 
     def heuristic(self, cars):
-        """Эвристическая функция для IDA*"""
+        """Продвинутая эвристика: количество блокирующих машин + невозможность их сдвига"""
         red_car = cars.get(1)
         if not red_car or red_car['orientation'] != 'h' or red_car['row'] != self.target_row:
             return float('inf')
 
-        # Создаем временную сетку для анализа блокировок
+        # Временная сетка
         grid = [[0 for _ in range(self.cols)] for _ in range(self.rows)]
         for car in cars.values():
             if car['orientation'] == 'h':
                 for i in range(car['length']):
-                    if car['col'] + i < self.cols:
+                    if 0 <= car['col'] + i < self.cols:
                         grid[car['row']][car['col'] + i] = car['id']
             else:
                 for i in range(car['length']):
-                    grid[car['row'] + i][car['col']] = car['id']
+                    if 0 <= car['row'] + i < self.rows:
+                        grid[car['row'] + i][car['col']] = car['id']
 
-        # Подсчитываем блокирующие машины
-        blocking = 0
-        exit_pos = red_car['col'] + red_car['length']
-        for col in range(exit_pos, self.cols):
-            if grid[self.target_row][col] != 0:
-                blocking += 1
-                # Дополнительный вес для вертикальных машин
-                if cars.get(grid[self.target_row][col], {}).get('orientation') == 'v':
-                    blocking += 1
+        blocking_ids = set()
+        red_exit_col = red_car['col'] + red_car['length']
+        for col in range(red_exit_col, self.cols):
+            cell = grid[self.target_row][col]
+            if cell > 0 and cell != 1:
+                blocking_ids.add(cell)
 
-        return blocking + (self.exit_col - exit_pos)
+        heuristic_score = 0
+        for block_id in blocking_ids:
+            heuristic_score += 1
+            blocker = cars[block_id]
+            if blocker['orientation'] == 'v':
+                # Проверяем, может ли вертикальная машина сдвинуться вверх или вниз
+                row, col = blocker['row'], blocker['col']
+                can_move = False
+                # вверх
+                if row > 0 and grid[row - 1][col] == 0 and self.grid[row - 1][col] != -1:
+                    can_move = True
+                # вниз
+                if row + blocker['length'] < self.rows and grid[row + blocker['length']][col] == 0 and self.grid[row + blocker['length']][col] != -1:
+                    can_move = True
+                if not can_move:
+                    heuristic_score += 1  # Удваиваем, если не может сдвинуться
+
+        # Добавим расстояние от хвоста красной машины до выхода
+        heuristic_score += (self.exit_col - (red_car['col'] + red_car['length']))
+        return heuristic_score
 
     def get_moves(self, cars):
         """Генерирует все возможные ходы для текущего состояния"""
@@ -305,25 +322,47 @@ class RushHourIDAStar:
         for i, (cid, dir, dist) in enumerate(solution, 1):
             print(f"Шаг {i}: Машина {self.id_to_char.get(cid, str(cid))} → {dir} на {dist}")
 
+def test_level(level_str):
+    """Тестирует решение для одного уровня"""
+    print(f"\nТестируем уровень: {level_str}")
+    
+    tracemalloc.start()
+    start_time = time.time()
+    
+    solver = RushHourIDAStar(level_str)
+    solution = solver.solve()
+    
+    end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    
+    solver.print_solution(solution)
+    print(f"Время выполнения: {end_time - start_time:.4f} сек")
+    print(f"Пиковая память: {peak / 1024:.2f} KB")
+
+
 if __name__ == "__main__":
-    # Примеры уровней для разных размеров
-    levels = {
-        '5x5': "ooCCGBBBoGAAFDoEoFDHEJJoH"
-    }
 
-    for size, level_str in levels.items():
-        print(f"\n=== Решаем уровень {size} ===")
-        
-        tracemalloc.start()
-        start_time = time.time()
+    test_level("oooBNNNCGGBLLoCIxEEoJoIAAOFJoIDoOFoHoDoxFPHxoKKKP")
 
-        solver = RushHourIDAStar(level_str)
-        solution = solver.solve()
+    test_level("GoxoxoHGLLLoxHGoKooEHAAKMFENoCCMFoNxDDMBBooJJoIII")
 
-        end_time = time.time()
-        current, peak = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
+    test_level("oNoBKJJxNoBKooIFFBKLGIAAooLGCooDDDGCHHHooooooxEEx")
 
-        solver.print_solution(solution)
-        print(f"\nВремя выполнения: {end_time - start_time:.2f} сек")
-        print(f"Пиковое использование памяти: {peak / 1024:.2f} KB")
+    test_level("OHDoCCoOHDooKoBxDJMKIBAAJMKIooLoMEINFLxoEPNFLGGxP")
+
+    test_level("EoBoNNNECBxGIJxCBxGIJoCAAGKoFooxxKxFxHHHKLFooDDDL")
+
+    test_level("oCMoHDDxCMxHGOoxxxHGOAAoooGBoFFFEEBxxooPooxxooPLL")
+
+    test_level("oKCCCooEKMOOOFEKMLLLFNHMAAIFNHxoJIooHoDJPPGGoDoBB")
+
+    test_level("LLLxxxNDxxoCCNDOoIIGNJOAAKGFJEEHKGFJooHoMMoxBBooo")
+
+    test_level("DDDoLLLCCCFGGooooFoBoEIAAHBNEIMoHJNEoMoHJxooMKKJo")
+
+    test_level("GGJBBoHCxJoDDHCxooFKHCoAAFKooIIIFKxxooNNNxxooxEEE")
+
+    test_level("QoGNNKKQHGFFFMIHGoxEMIHAAoEMoJJJxoBDRLOCCBDRLOooo")
+
+    test_level("EEooBGGIoJDBOOIxJDoCHIooAACHFFFooCooQRRxoxoQoxoSS")

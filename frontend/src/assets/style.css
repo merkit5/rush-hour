@@ -9,6 +9,37 @@ body {
   user-select: none;
 }
 
+.size-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.size-buttons button {
+  padding: 1.2rem 2.4rem;
+  font-size: 1.2rem;
+  background-color: #5f27cd;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.size-buttons button:hover {
+  background-color: #4a1da8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.back-button:hover {
+  background-color: #e0e0e0;
+  border-color: #ccc;
+}
+
 h1 {
   color: #333;
 }
@@ -39,8 +70,6 @@ h1 {
 }
 
 .cell {
-  width: 60px;
-  height: 60px;
   border: 2px solid #aaa;
   background-color: #fff;
   position: relative;
@@ -332,4 +361,25 @@ h1 {
     opacity: 0.8;
     border-color: #ffaa00;
   }
+}
+
+.cell.wall {
+  background-color: #333;
+  position: relative;
+  overflow: hidden;
+}
+
+.cell.wall::before,
+.cell.wall::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom right, transparent 45%, #ff0000 45%, #ff0000 55%, transparent 55%);
+}
+
+.cell.wall::after {
+  background: linear-gradient(to top right, transparent 45%, #ff0000 45%, #ff0000 55%, transparent 55%);
 }
