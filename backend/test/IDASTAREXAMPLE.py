@@ -92,50 +92,32 @@ class RushHourIDAStar:
                 red_car['col'] + red_car['length'] == self.exit_col)
 
     def heuristic(self, cars):
-        """Продвинутая эвристика: количество блокирующих машин + невозможность их сдвига"""
-        red_car = cars.get(1)
+        """Эвристика: количество машин, блокирующих путь красной машины к выходу"""
+        red_car = cars.get(1)  # Красная машина всегда имеет id 1
         if not red_car or red_car['orientation'] != 'h' or red_car['row'] != self.target_row:
             return float('inf')
 
-        # Временная сетка
+        # Создаем временную сетку для проверки блокировок
         grid = [[0 for _ in range(self.cols)] for _ in range(self.rows)]
         for car in cars.values():
             if car['orientation'] == 'h':
                 for i in range(car['length']):
-                    if 0 <= car['col'] + i < self.cols:
+                    if car['col'] + i < self.cols:
                         grid[car['row']][car['col'] + i] = car['id']
             else:
                 for i in range(car['length']):
-                    if 0 <= car['row'] + i < self.rows:
+                    if car['row'] + i < self.rows:
                         grid[car['row'] + i][car['col']] = car['id']
 
-        blocking_ids = set()
+        # Подсчитываем блокирующие машины
+        blocking = 0
         red_exit_col = red_car['col'] + red_car['length']
+        
         for col in range(red_exit_col, self.cols):
-            cell = grid[self.target_row][col]
-            if cell > 0 and cell != 1:
-                blocking_ids.add(cell)
+            if grid[self.target_row][col] != 0 and grid[self.target_row][col] != 99:
+                blocking += 1
 
-        heuristic_score = 0
-        for block_id in blocking_ids:
-            heuristic_score += 1
-            blocker = cars[block_id]
-            if blocker['orientation'] == 'v':
-                # Проверяем, может ли вертикальная машина сдвинуться вверх или вниз
-                row, col = blocker['row'], blocker['col']
-                can_move = False
-                # вверх
-                if row > 0 and grid[row - 1][col] == 0 and self.grid[row - 1][col] != -1:
-                    can_move = True
-                # вниз
-                if row + blocker['length'] < self.rows and grid[row + blocker['length']][col] == 0 and self.grid[row + blocker['length']][col] != -1:
-                    can_move = True
-                if not can_move:
-                    heuristic_score += 1  # Удваиваем, если не может сдвинуться
-
-        # Добавим расстояние от хвоста красной машины до выхода
-        heuristic_score += (self.exit_col - (red_car['col'] + red_car['length']))
-        return heuristic_score
+        return blocking
 
     def get_moves(self, cars):
         """Генерирует все возможные ходы для текущего состояния"""
@@ -342,27 +324,5 @@ def test_level(level_str):
 
 
 if __name__ == "__main__":
-
-    test_level("oooBNNNCGGBLLoCIxEEoJoIAAOFJoIDoOFoHoDoxFPHxoKKKP")
-
-    test_level("GoxoxoHGLLLoxHGoKooEHAAKMFENoCCMFoNxDDMBBooJJoIII")
-
-    test_level("oNoBKJJxNoBKooIFFBKLGIAAooLGCooDDDGCHHHooooooxEEx")
-
-    test_level("OHDoCCoOHDooKoBxDJMKIBAAJMKIooLoMEINFLxoEPNFLGGxP")
-
-    test_level("EoBoNNNECBxGIJxCBxGIJoCAAGKoFooxxKxFxHHHKLFooDDDL")
-
-    test_level("oCMoHDDxCMxHGOoxxxHGOAAoooGBoFFFEEBxxooPooxxooPLL")
-
-    test_level("oKCCCooEKMOOOFEKMLLLFNHMAAIFNHxoJIooHoDJPPGGoDoBB")
-
-    test_level("LLLxxxNDxxoCCNDOoIIGNJOAAKGFJEEHKGFJooHoMMoxBBooo")
-
-    test_level("DDDoLLLCCCFGGooooFoBoEIAAHBNEIMoHJNEoMoHJxooMKKJo")
-
-    test_level("GGJBBoHCxJoDDHCxooFKHCoAAFKooIIIFKxxooNNNxxooxEEE")
-
-    test_level("QoGNNKKQHGFFFMIHGoxEMIHAAoEMoJJJxoBDRLOCCBDRLOooo")
-
-    test_level("EEooBGGIoJDBOOIxJDoCHIooAACHFFFooCooQRRxoxoQoxoSS")
+        # 11 уровень
+    test_level("FFCCCoIIDDoHoAAoJHEMMBJGExKBJGEoKNNo")

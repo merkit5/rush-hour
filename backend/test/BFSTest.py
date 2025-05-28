@@ -246,31 +246,3 @@ def test_level(level_str):
 if __name__ == "__main__":
     # 5x5 уровень
     test_level("xFFCKoooNNCKBIxoECKBIAAEJoBIDoEJxSODxoJGSODoLLGHH")
-
-    test_level("QUoMMooQUDDooGBBPoHIGAAPoHIEoKCCJxExKRRJoExoFFJoo")
-
-    test_level("ooBooHHxJBCCCMoJoooxMLJAAEGMLTToEGFLKKKEoFoIIIDDF")
-
-    test_level("CCoJJJoNKKEEoBNDRRMPBNDAAMPBLDQxMxFLOQHHIFoOGGoIo")
-
-    test_level("oGPPJJHxGxoKoHFoCCKEHFAASKEoFRISxoLxRIDDxLoBBMMoL")
-
-    test_level("UUOFFFPooOKKoPIIIoQxCJBAAQoCJBoDHHoJoGDEEoxoGDoox")
-
-    test_level("JJJoxooOBGEEINOBGxRINooAARINCCooDxoHoFFDoKHLLoMMK")
-
-    test_level("MLoBBxCMLOxooCMoOFGGGIAAFoooINNNHKEJJJoHKEoDDDHKo")
-
-    test_level("oDJoEQQGDJIEHoGoJIEHBLAAICOBLMKoCOBLMKxCOPoMNNFFP")
-
-    test_level("KKBRRLLDoBIISSDooGGGHoAAoMoHoCCFMJHxNoFMJUoNEEEJU")
-
-    test_level("EEMIIoJooMSSKJHoMGDKJHAAGDKOHPoFFFORPoNLooRBBNLCC")
-
-    test_level("EoIoGBBEoIoGxooJIxGHHKJAAooRKDoLLLRoDoCCCxoFFFMMx")
-
-    test_level("ooIILxxoJGoLOODJGoLCBDJoAACBDKKoEoFMQQoEoFMHHHoxx")
-
-    test_level("BBooKoooCCCKoxooIoxHJAAILoHJGMMLoFFGEELDooxPPPDoo")
-
-    test_level("oKJJJoBGKCIIIBGoCEEMoGAADPMoxQQDPHOoNNoLHORRFFLHO")

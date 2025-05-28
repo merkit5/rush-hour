@@ -7,7 +7,7 @@
 </template>
 
 <script setup>
-import GameBoard from './components/GameBoard.vue'
+import GameBoard from './components/GameContainer.vue'
 </script>
 
 <style src="./assets/style.css"></style>
