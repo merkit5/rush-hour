@@ -10,6 +10,7 @@
 ```bash
 cd frontend
 npm install
+bash```
 
 #### ▶️ Запуск фронтенда:
 
