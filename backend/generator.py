@@ -30,8 +30,8 @@ MAX_CARS = 21
 MAX_ATTEMPTS = 5000000
 WALL_PROBABILITY = 0.15
 
-# Глобальный lock для безопасной записи в файлы
 file_lock = Lock()
+
 
 class RushHourGenerator:
     def __init__(self, size):
@@ -49,11 +49,9 @@ class RushHourGenerator:
         self.load_existing_levels()
 
     def get_thresholds(self):
-        """Возвращает пороги сложности для текущего размера"""
         return self.thresholds
 
     def get_output_files(self):
-        """Получает пути к выходным файлам"""
         return {
             'easy': f"../frontend/src/levels/easy_{self.size}.js",
             'medium': f"../frontend/src/levels/medium_{self.size}.js",
@@ -61,7 +59,6 @@ class RushHourGenerator:
         }
 
     def load_existing_levels(self):
-        """Загружает существующие уровни из файлов"""
         files = self.get_output_files()
         for fname in files.values():
             try:
@@ -70,7 +67,6 @@ class RushHourGenerator:
                     start = content.find('[') + 1
                     end = content.find(']', start)
                     levels_str = content[start:end]
-                    
                     for line in levels_str.split('\n'):
                         line = line.strip()
                         if line.startswith('"') and line.endswith('"'):
@@ -80,7 +76,6 @@ class RushHourGenerator:
                 continue
 
     def generate_smart_config(self, difficulty=None):
-        """Генерация конфигурации с учетом сложности"""
         attempts = 0
         max_attempts = 1000
         width = self.size_params['width']
@@ -92,14 +87,12 @@ class RushHourGenerator:
             self.total_generated += 1
             field = ['o'] * (width * height)
 
-            # Размещаем стены для сложных уровней
             if difficulty == 'hard':
                 for i in range(width * height):
                     if random.random() < WALL_PROBABILITY:
                         if not (i // width == red_row and i % width >= RED_LENGTH):
                             field[i] = 'x'
 
-            # Размещаем красную машину
             red_x = random.choices(
                 range(width - RED_LENGTH),
                 weights=[(x + 1) * (width - x - RED_LENGTH) for x in range(width - RED_LENGTH)],
@@ -113,7 +106,6 @@ class RushHourGenerator:
             field[pos1] = 'A'
             field[pos2] = 'A'
 
-            # Размещаем другие машины
             cars_placed = 1
             car_chars = 'BCDEFGHIJKLMNOPQRSTUVWXYZ'[:MAX_CARS - 1]
 
@@ -137,9 +129,9 @@ class RushHourGenerator:
                     config not in self.unsolvable_configs and
                     cars_placed >= 6):
                 self.seen_configs.add(config)
-                return config
+                return config, attempts
 
-        return None
+        return None, attempts
 
     def find_valid_car_position(self, field, length, orientation):
         """Находит валидную позицию для машины"""
@@ -455,10 +447,11 @@ class RushHourGenerator:
                 f.write(content)
 
     def run(self):
-        """Основной цикл генерации для одного размера"""
-        print(f"Старт генерации {self.size}...")
+        print(f"Старт генерации {self.size}...", flush=True)
+        attempt_id = 0  # <- глобальный счётчик попыток генерации
+
         while (self.easy_count < 15 or self.medium_count < 15 or self.hard_count < 15):
-            # Упрощённая логика выбора сложности
+            attempt_id += 1  # Увеличиваем каждый раз, когда пробуем сгенерировать
             if self.hard_count < 15:
                 difficulty_target = 'hard'
             elif self.medium_count < 15:
@@ -466,7 +459,7 @@ class RushHourGenerator:
             else:
                 difficulty_target = 'easy'
 
-            config = self.generate_smart_config(difficulty_target)
+            config, _ = self.generate_smart_config(difficulty_target)
             if not config:
                 continue
 
@@ -475,8 +468,7 @@ class RushHourGenerator:
                 continue
 
             difficulty, steps = result
-            
-            # Проверяем, нужно ли нам еще уровни этой сложности
+
             if difficulty == 'easy' and self.easy_count >= 15:
                 continue
             elif difficulty == 'medium' and self.medium_count >= 15:
@@ -493,20 +485,25 @@ class RushHourGenerator:
             else:
                 self.hard_count += 1
 
-            print(f"{self.size}: {difficulty} ({steps} шагов) | Easy: {self.easy_count}/15, Medium: {self.medium_count}/15, Hard: {self.hard_count}/15")
+            print(
+                f"{self.size}: {difficulty.upper()} ({steps} шагов, найден на попытке #{attempt_id}) | "
+                f"Easy: {self.easy_count}/15, Medium: {self.medium_count}/15, Hard: {self.hard_count}/15",
+                flush=True
+            )
+
 
 
 def generate_for_size(size):
-    """Функция для запуска в отдельном процессе"""
     generator = RushHourGenerator(size)
     generator.run()
 
+
 if __name__ == "__main__":
-    print("Запуск параллельной генерации...")
+    print("Запуск параллельной генерации...", flush=True)
     start_time = time.time()
-    
+
     with Pool(processes=3) as pool:
         pool.map(generate_for_size, ['5x5', '6x6', '7x7'])
-    
+
     total_time = time.time() - start_time
-    print(f"Все уровни сгенерированы за {total_time:.1f} секунд")
+    print(f"Все уровни сгенерированы за {total_time:.1f} секунд", flush=True)

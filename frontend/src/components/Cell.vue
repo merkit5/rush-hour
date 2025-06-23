@@ -62,17 +62,12 @@ const props = defineProps({
   }
 })
 
-const colors = [
-  "#4ecdc4", "#ffe66d", "#ff7b00", "#54a0ff", 
-  "#5f27cd", "#10ac84", "#f368e0", "#346194",
-  "#037f7f", "#ffcc29", "#2ed573", "#3742fa",
-  "#8c7ae6", "#44bd32", "#40739e", "#D980FA",
-  "#A3CB38", "#1289A7"
-]
-
 const getCarColor = (carId) => {
   if (carId === -1) return "#000000"
   if (carId === 1) return "#f00"
-  return colors[(carId - 2) % colors.length]
+
+  const hue = ((carId - 2) * 137) % 360
+  return `hsl(${hue}, 70%, 60%)`
 }
+
 </script>

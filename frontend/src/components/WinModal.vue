@@ -3,7 +3,7 @@
   <div class="modal-overlay">
     <div class="modal">
       <h2>Поздравляем! 🎉</h2>
-      <p>Вы выиграли уровень {{ levelNumber }}!</p>
+      <p>Вы прошли уровень {{ levelNumber }}!</p>
       <div class="win-buttons">
         <button 
           v-if="hasNextLevel" 
